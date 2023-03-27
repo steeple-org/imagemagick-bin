@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+set -o errexit
+set -o nounset
+
+echo_section () {
+  echo "-----> $@"
+}
+
+warn () {
+  echo "$@" 1>&2
+}
+
+test_vn () {
+  test -v $1 && test -n "${!1}" && return 0
+  warn "\$$1 cannot be unset or blank"
+  return 1
+}
+
+echo_section "Checking environment variables"
+
+test_vn RELEASE_URL
+test_vn RELEASE_VERSION
+test_vn RELEASE_CHECKSUM
+test_vn RELEASE_CHECKSUM_ALG
+
+RELEASE_BASENAME="$(basename "$RELEASE_URL")"
+PACKAGE_BASENAME="ImageMagick-$RELEASE_VERSION.tar.xz"
+
+DIST_DIR="$(pwd)/dist"
+mkdir -p "$DIST_DIR"
+
+export TMPDIR="$(mktemp -d)"
+BUILD_DIR="$(mktemp -d)"
+INSTALL_DIR="$(mktemp -d)"
+
+pushd "$BUILD_DIR" > /dev/null
+
+echo_section "Download release"
+
+curl \
+  --silent \
+  --show-error \
+  --location \
+  --remote-name \
+  "$RELEASE_URL"
+
+echo_section "Verify release"
+
+echo "$RELEASE_CHECKSUM  $RELEASE_BASENAME" | ${RELEASE_CHECKSUM_ALG}sum --check - > /dev/null
+
+echo_section "Extract release"
+
+tar xaf "$RELEASE_BASENAME" --strip-components=1
+rm "$RELEASE_BASENAME"
+
+echo_section "Build release"
+
+./configure --prefix="$INSTALL_DIR"
+make
+make install
+make check
+
+popd > /dev/null
+
+echo_section "Package release"
+
+pushd "$INSTALL_DIR" > /dev/null
+
+# Remove HTML docs and manpages, as both are useless on a Heroku app
+rm -r share/doc
+rm -r share/man
+
+popd > /dev/null
+
+pushd "$DIST_DIR" > /dev/null
+chmod 755 "$INSTALL_DIR" # mktemp did 700, and we want 755 for the tar archive
+tar caf "$PACKAGE_BASENAME" -C "$INSTALL_DIR" .
+sha256sum "$PACKAGE_BASENAME" > "$PACKAGE_BASENAME.sha256sum"
+popd > /dev/null
+
+rm -r "$TMPDIR"

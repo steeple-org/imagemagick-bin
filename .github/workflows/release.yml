@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 7.0.8-68
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    container:
+      image: heroku/heroku:20-build
+
+      env:
+        RELEASE_VERSION: ${{ github.ref_name }}
+        RELEASE_URL: https://download.imagemagick.org/archive/releases/ImageMagick-${{ github.ref_name }}.tar.xz
+        RELEASE_CHECKSUM: 3639baa6ceb5db38b1b48a4b917f90fe007ca7edca1f7894d5555a0bc746305a
+        RELEASE_CHECKSUM_ALG: sha256
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup dependencies
+        run: |
+          apt-get update
+          apt-get install --yes --no-install-recommends \
+            libwebp-dev
+
+      - name: Build package
+        run: bin/build
+        shell: bash
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*
