@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 7.0.8-68
+      - "*.*.*-*"
 
 permissions:
   contents: write
@@ -18,7 +18,7 @@ jobs:
       env:
         RELEASE_VERSION: ${{ github.ref_name }}
         RELEASE_URL: https://download.imagemagick.org/archive/releases/ImageMagick-${{ github.ref_name }}.tar.xz
-        RELEASE_CHECKSUM: 3639baa6ceb5db38b1b48a4b917f90fe007ca7edca1f7894d5555a0bc746305a
+        RELEASE_CHECKSUM: 63a49fdb23767db55d25fcdd3147a2e1b4f7e9c568bc5b8a4bd30f3dbc62a35d
         RELEASE_CHECKSUM_ALG: sha256
 
     steps:
